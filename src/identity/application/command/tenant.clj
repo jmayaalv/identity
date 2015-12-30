@@ -35,10 +35,29 @@
             :tenant-id s/Uuid)
 
 (defmethod handle-command ::Deactivate!
-            [tenant {:keys [tenant-id]}]
-            (cond
-              (tenant/inactive? tenant) [:rejected [:tenant "Tenant is already inactive"]]
+  [tenant {:keys [tenant-id]}]
+  (cond
+    (tenant/inactive? tenant) [:rejected [:tenant "Tenant is already inactive"]]
 
-              :else
-              [:ok [(tenant/deactivated tenant-id)]]))
+    :else
+    [:ok [(tenant/deactivated tenant-id)]]))
 
+
+(defcommand ChangeName!
+            :tenant-id s/Uuid
+            :name s/Str)
+
+(defmethod handle-command ::ChangeName!
+  [_ {:keys [tenant-id name]}]
+  (cond
+    (blank? name) [:rejected [:name "Can't be blank"]]
+    :else
+    [:ok [(tenant/name-changed tenant-id name)]]))
+
+(defcommand ChangeDescription!
+            :tenant-id s/Uuid
+            :description s/Str)
+
+(defmethod handle-command ::ChangeDescription!
+  [_ {:keys [tenant-id description]}]
+    [:ok [(tenant/description-changed tenant-id description)]])

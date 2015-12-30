@@ -36,3 +36,20 @@
 (defmethod handle-event ::Deactivated
   [tenant _]
   (assoc tenant :active false))
+
+(defevent NameChanged
+          :tenant-id s/Uuid
+          :name s/Str)
+
+(defmethod handle-event ::NameChanged
+  [tenant {:keys [name]}]
+  (assoc tenant :name name))
+
+
+(defevent DescriptionChanged
+          :tenant-id s/Uuid
+          :description s/Str)
+
+(defmethod handle-event ::DescriptionChanged
+  [tenant {:keys [description]}]
+  (assoc tenant :description description))

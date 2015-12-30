@@ -7,12 +7,12 @@
 
 (defrecord User [user-id tenant-id first-name last-name username password enablement])
 (defrecord ContactInformation [email])
-(defrecord Enablement [start-date])
+(defrecord Enablement [enabled start-date])
 (defrecord Address [country-code city postal-code province street])
 (defrecord Authentication [user-id username])
 
 (defn indefinite-enablement []
-  (->Enablement (time/now)))
+  (->Enablement true (time/now)))
 
 
 (defn full-name [{:keys [first_name last_name]}]
@@ -33,13 +33,14 @@
     (and enabled (time/within? start-date end-date now))))
 
 (defn disabled? [tenant]
-  (complement enabled?) tenant)
+  ((complement enabled?) tenant))
 
 (defn valid-credentials? [{:keys [user-id username password]} c_username c_password]
-  (= (username c_username) (password (encrypt! c_password user-id))))
+  (and (= username c_username)
+       (= password (encrypt! c_password user-id))))
 
 (defn invalid-credentials? [user username password]
-  (complement valid-credentials?) user username password)
+  ((complement valid-credentials?) user username password))
 
 (defevent Registered
           :tenant-id s/Uuid
@@ -106,6 +107,7 @@
 (defmethod handle-event ::Enabled
   [user _]
   (-> user
+      (assoc-in [:enablement :enabled] true)
       (assoc-in [:enablement :start-date] (time/now))
       (assoc-in [:enablement :end-date] nil)))
 
@@ -114,7 +116,9 @@
 
 (defmethod handle-event ::Disabled
   [user _]
-  (assoc-in user [:enablement :end-date] (time/now)))
+  (-> user
+      (assoc-in [:enablement :enabled] false)
+      (assoc-in [:enablement :end-date] (time/now))))
 
 ;(defevent ContactInformationCreated
 ;          :user-id s/Uuid

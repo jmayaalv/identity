@@ -1,6 +1,6 @@
 (ns identity.application.command.user
   (:require [clojure.string :refer [blank?]]
-            [rill.aggregate :refer [handle-command]]
+            [rill.aggregate :refer [handle-command aggregate-ids]]
             [rill.message :refer [defcommand primary-aggregate-id]]
             [schema.core :as s]
             [identity.domain.model.tenant :as tenant]
@@ -24,12 +24,12 @@
 (defmethod handle-command ::Register!
   [tenant {:keys [tenant-id user-id first-name last-name email username password]}]
   (cond
-    (tenant/inactive? tenant) [[:rejected] [:inactive "Tenant inactive"]]
-    (blank? first-name) [:rejected [:first-name "can't be blank"]]
-    (blank? last-name) [:rejected [:last-name "can't be blank"]]
-    (blank? email) [:rejected [:email "can't be blank"]]
-    (blank? username) [:rejected [:username "can't be blank"]]
-    (blank? password) [:rejected [:password "can't be blank"]]
+    (tenant/inactive? tenant) [:rejected [:tenant-inactive "Tenant inactive"]]
+    (blank? first-name) [:rejected [:blank-first-name "can't be blank"]]
+    (blank? last-name) [:rejected [:blank-last-name "can't be blank"]]
+    (blank? email) [:rejected [:blank-email "can't be blank"]]
+    (blank? username) [:rejected [:blank-username "can't be blank"]]
+    (blank? password) [:rejected [:blank-password "can't be blank"]]
     ;todo validate that username is unique on the tenant
 
     :else
@@ -59,9 +59,9 @@
             :email s/Str)
 
 (defmethod handle-command ::ChangeEmail!
-  [user {:keys [user-id email]}]
+  [_ {:keys [user-id email]}]
   (cond
-    (= email (:email user)) [:rejected [:user "Email is the same as previous emails"]]
+    (blank? email) [:rejected [:blank-email "can't be blank"]]
     :else
     [:ok [(user/email-changed user-id email)]]))
 
@@ -73,8 +73,8 @@
 (defmethod handle-command ::ChangePassword!
   [user {:keys [user-id current-password new-password]}]
   (cond
-    (blank? new-password) [:rejected [:password "Password can't be blank"]]
-    (user/invalid-credentials? user (:username user) current-password) [:rejected [:user "Invalid Credentials"]]
+    (blank? new-password) [:rejected [:password "can't be blank"]]
+    (user/invalid-credentials? user (:username user) current-password) [:rejected [:invalid-credentials "Invalid Credentials"]]
     :else
     [:ok [(user/password-changed user-id (user/encrypt! new-password user-id))]]))
 
@@ -87,8 +87,8 @@
 (defmethod handle-command ::ChangeName!
   [_ {:keys [user-id first-name last-name]}]
   (cond
-    (blank? first-name) [:rejected [:first-name "First Name can't be blank"]]
-    (blank? last-name) [:rejected [:last-name "Last Name can't be blank"]]
+    (blank? first-name) [:rejected [:blank-first-name "First Name can't be blank"]]
+    (blank? last-name) [:rejected [:blank-last-name "Last Name can't be blank"]]
     :else
     [:ok [(user/name-changed user-id first-name last-name)]]))
 
@@ -100,27 +100,38 @@
 (defmethod handle-command ::DefineEnablement!
   [_ {:keys [user-id start-date end-date]}]
   (cond
-    (blank? start-date) [:rejected [:start-date "Start Date can't be blank"]]
+    (blank? start-date) [:rejected [:blank-start-date "Start Date can't be blank"]]
     :else
     [:ok [(user/enablement-defined user-id start-date end-date)]]))
 
 (defcommand Enable!
-            :user-id s/Uuid)
+            :user-id s/Uuid
+            :tenant-id s/Uuid)
+
+(defmethod aggregate-ids ::Enable!
+  [_ {:keys [tenant-id]}]
+  [tenant-id])
 
 (defmethod handle-command ::Enable!
-  [user {:keys [user-id]}]
+  [user {:keys [user-id]} tenant]
   (cond
-    (user/enabled? user) [:rejected [:user "User is already enabled"]]
+    (tenant/inactive? tenant) [:rejected [:tenant-inactive "Tenant is not active"]]
+    (user/enabled? user) [:rejected [:user-enabled "User is already enabled"]]
     :else
     [:ok [(user/enabled user-id)]]))
 
+(defmethod aggregate-ids ::Disable!
+  [_ {:keys [tenant-id]}]
+  [tenant-id])
 
 (defcommand Disable!
-            :user-id s/Uuid)
+            :user-id s/Uuid
+            :tenant-id s/Uuid)
 
 (defmethod handle-command ::Disable!
-  [user {:keys [user-id]}]
+  [user {:keys [user-id]} tenant]
   (cond
-    (user/disabled? user) [:rejected [:user "User is already disabled"]]
+    (tenant/inactive? tenant) [:rejected [:tenant-inactive "Tenant is not active"]]
+    (user/disabled? user) [:rejected [:user-disabled "User is already disabled"]]
     :else
     [:ok [(user/disabled user-id)]]))
