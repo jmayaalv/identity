@@ -1,7 +1,7 @@
 (ns identity.application.command.user
   (:require [clojure.string :refer [blank?]]
-            [rill.aggregate :refer [handle-command aggregate-ids]]
-            [rill.message :refer [defcommand]]
+            [rill.aggregate :refer [handle-command]]
+            [rill.message :refer [defcommand primary-aggregate-id]]
             [schema.core :as s]
             [identity.domain.model.tenant :as tenant]
             [identity.domain.model.user :as user])
@@ -17,9 +17,14 @@
             :username s/Str
             :password s/Str)
 
+(defmethod primary-aggregate-id ::Register!
+  [{:keys [tenant-id]}]
+  tenant-id)
+
 (defmethod handle-command ::Register!
-  [_ {:keys [tenant-id user-id first-name last-name email username password]}]
+  [tenant {:keys [tenant-id user-id first-name last-name email username password]}]
   (cond
+    (tenant/inactive? tenant) [[:rejected] [:inactive "Tenant inactive"]]
     (blank? first-name) [:rejected [:first-name "can't be blank"]]
     (blank? last-name) [:rejected [:last-name "can't be blank"]]
     (blank? email) [:rejected [:email "can't be blank"]]

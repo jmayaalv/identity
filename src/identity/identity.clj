@@ -7,9 +7,14 @@
 
 (defn provision-tenant!
   "Creates a new tenant"
-  [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]
-  (try-command @store-atom
-               (tenant-command/provision! tenant-id name description)))
+  [tenant-id name description admin-id admin-first-name admin-last-name admin-email admin-username admin-password]
+  (do (try-command @store-atom
+               (tenant-command/provision! tenant-id name description))
+      (try-command @store-atom
+                   (tenant-command/activate! tenant-id))
+      (try-command @store-atom (user-command/register! tenant-id admin-id admin-first-name admin-last-name
+                              admin-email admin-username admin-password))
+      ))
 
 (defn activate-tenant!
   [tenant-id]

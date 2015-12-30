@@ -1,11 +1,11 @@
 (ns identity.domain.model.user
   (:require [schema.core :as s]
             [clj-time.core :as time]
-            [rill.message :refer [defevent]]
+            [rill.message :refer [defevent primary-aggregate-id]]
             [rill.aggregate :refer [handle-event]])
   (:import (java.util Date)))
 
-(defrecord User [user-id tenant-id first_name last_name username password enablement])
+(defrecord User [user-id tenant-id first-name last-name username password enablement])
 (defrecord ContactInformation [email])
 (defrecord Enablement [start-date])
 (defrecord Address [country-code city postal-code province street])
@@ -42,16 +42,20 @@
   (complement valid-credentials?) user username password)
 
 (defevent Registered
-          :user-id s/Uuid
           :tenant-id s/Uuid
+          :user-id s/Uuid
           :first-name s/Str
           :last-name s/Str
           :email s/Str
           :username s/Str
           :password s/Str)
 
+(defmethod primary-aggregate-id ::Registered
+  [{:keys [user-id]}]
+  user-id)
+
 (defmethod handle-event ::Registered
-  [_ {:keys [user-id tenant-id first-name last-name email username password]}]
+  [_ {:keys [tenant-id user-id first-name last-name email username password]}]
   (let [user (->User user-id tenant-id first-name last-name username password (indefinite-enablement))
         contact-info (->ContactInformation email)]
     (assoc user :contact-info contact-info)))
