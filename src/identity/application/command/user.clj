@@ -10,21 +10,27 @@
 
 (defcommand Register!
             :tenant-id s/Uuid
-            :user-id s/Uuid
             :first-name s/Str
             :last-name s/Str
             :email s/Str
             :username s/Str
-            :password s/Str)
+            :password s/Str
+            user/user-id)
 
-(defmethod primary-aggregate-id ::Register!
-  [{:keys [tenant-id]}]
-  tenant-id)
+;(defmethod primary-aggregate-id ::Register!
+;  [{:keys [user-id tenant-id]}]
+;  (str user-id ":" tenant-id))
+;
+
+(defmethod aggregate-ids ::Register!
+  [_ {:keys [tenant-id]}]
+  [tenant-id])
 
 (defmethod handle-command ::Register!
-  [tenant {:keys [tenant-id user-id first-name last-name email username password]}]
+  [user {:keys [tenant-id first-name last-name email username password]} tenant]
   (cond
     (tenant/inactive? tenant) [:rejected [:tenant-inactive "Tenant inactive"]]
+    (not (nil? user)) [:rejected [:invalid-username "User Already Exists"]]
     (blank? first-name) [:rejected [:blank-first-name "can't be blank"]]
     (blank? last-name) [:rejected [:blank-last-name "can't be blank"]]
     (blank? email) [:rejected [:blank-email "can't be blank"]]
@@ -33,7 +39,7 @@
     ;todo validate that username is unique on the tenant
 
     :else
-    [:ok [(user/registered tenant-id user-id first-name last-name email username (user/encrypt! password user-id))]]))
+    [:ok [(user/registered tenant-id first-name last-name email username (user/encrypt! password tenant-id))]]))
 
 ;(defcommand Authenticate!
 ;            :tenant-id s/Uuid
@@ -54,84 +60,81 @@
 ;        :else
 ;        [:ok [(user/Authenticated user-id)]]))
 
-(defcommand ChangeEmail!
-            :user-id s/Str
-            :email s/Str)
-
-(defmethod handle-command ::ChangeEmail!
-  [_ {:keys [user-id email]}]
-  (cond
-    (blank? email) [:rejected [:blank-email "can't be blank"]]
-    :else
-    [:ok [(user/email-changed user-id email)]]))
-
 (defcommand ChangePassword!
-            :user-id s/Uuid
+            :tenant-id s/Uuid
+            :username s/Str
             :current-password s/Str
-            :new-password s/Str)
+            :new-password s/Str
+            user/user-id)
 
 (defmethod handle-command ::ChangePassword!
-  [user {:keys [user-id current-password new-password]}]
+  [user {:keys [tenant-id username current-password new-password]}]
   (cond
     (blank? new-password) [:rejected [:password "can't be blank"]]
     (user/invalid-credentials? user (:username user) current-password) [:rejected [:invalid-credentials "Invalid Credentials"]]
     :else
-    [:ok [(user/password-changed user-id (user/encrypt! new-password user-id))]]))
+    [:ok [(user/password-changed tenant-id username (user/encrypt! new-password tenant-id))]]))
 
 
 (defcommand ChangeName!
-            :user-id s/Uuid
+            :tenant-id s/Uuid
+            :username s/Str
             :first-name s/Str
-            :last-name s/Str)
+            :last-name s/Str
+            user/user-id)
 
 (defmethod handle-command ::ChangeName!
-  [_ {:keys [user-id first-name last-name]}]
+  [_ {:keys [tenant-id username first-name last-name]}]
   (cond
     (blank? first-name) [:rejected [:blank-first-name "First Name can't be blank"]]
     (blank? last-name) [:rejected [:blank-last-name "Last Name can't be blank"]]
     :else
-    [:ok [(user/name-changed user-id first-name last-name)]]))
+    [:ok [(user/name-changed tenant-id username first-name last-name)]]))
 
 (defcommand DefineEnablement!
-            :user-id s/Uuid
+            :tenant-id s/Uuid
+            :username s/Str
             :start-date Date
-            :end-date Date)
+            :end-date Date
+            user/user-id)
 
 (defmethod handle-command ::DefineEnablement!
-  [_ {:keys [user-id start-date end-date]}]
+  [_ {:keys [tenant-id username start-date end-date]}]
   (cond
     (blank? start-date) [:rejected [:blank-start-date "Start Date can't be blank"]]
     :else
-    [:ok [(user/enablement-defined user-id start-date end-date)]]))
+    [:ok [(user/enablement-defined tenant-id username start-date end-date)]]))
 
 (defcommand Enable!
-            :user-id s/Uuid
-            :tenant-id s/Uuid)
+            :tenant-id s/Uuid
+            :username s/Str
+            user/user-id)
 
 (defmethod aggregate-ids ::Enable!
   [_ {:keys [tenant-id]}]
   [tenant-id])
 
 (defmethod handle-command ::Enable!
-  [user {:keys [user-id]} tenant]
+  [user {:keys [tenant-id username]} tenant]
   (cond
     (tenant/inactive? tenant) [:rejected [:tenant-inactive "Tenant is not active"]]
     (user/enabled? user) [:rejected [:user-enabled "User is already enabled"]]
     :else
-    [:ok [(user/enabled user-id)]]))
+    [:ok [(user/enabled tenant-id username)]]))
+
+(defcommand Disable!
+            :tenant-id s/Uuid
+            :username s/Str
+            user/user-id)
 
 (defmethod aggregate-ids ::Disable!
   [_ {:keys [tenant-id]}]
   [tenant-id])
 
-(defcommand Disable!
-            :user-id s/Uuid
-            :tenant-id s/Uuid)
-
 (defmethod handle-command ::Disable!
-  [user {:keys [user-id]} tenant]
+  [user {:keys [tenant-id username]} tenant]
   (cond
     (tenant/inactive? tenant) [:rejected [:tenant-inactive "Tenant is not active"]]
     (user/disabled? user) [:rejected [:user-disabled "User is already disabled"]]
     :else
-    [:ok [(user/disabled user-id)]]))
+    [:ok [(user/disabled tenant-id username)]]))

@@ -7,12 +7,12 @@
 
 (defn provision-tenant!
   "Creates a new tenant"
-  [tenant-id name description admin-id admin-first-name admin-last-name admin-email admin-username admin-password]
+  [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]
   (do (try-command @store-atom
                    (tenant-command/provision! tenant-id name description))
       (try-command @store-atom
                    (tenant-command/activate! tenant-id))
-      (try-command @store-atom (user-command/register! tenant-id admin-id admin-first-name admin-last-name
+      (try-command @store-atom (user-command/register! tenant-id admin-first-name admin-last-name
                                                        admin-email admin-username admin-password))
       ))
 
@@ -32,23 +32,20 @@
   [tenant-id new-name]
   (try-command @store-atom (tenant-command/change-description! tenant-id new-name)))
 
-(defn register-user! [tenant-id user-id first-name last-name email username password]
-  (try-command @store-atom (user-command/register! tenant-id user-id first-name last-name email username password)))
+(defn register-user! [tenant-id first-name last-name email username password]
+  (try-command @store-atom (user-command/register! tenant-id  first-name last-name email username password)))
 
-(defn change-email! [user-id email]
-  (try-command @store-atom (user-command/change-email! user-id email)))
+(defn change-password! [tenant-id username password new-password]
+  (try-command @store-atom (user-command/change-password! tenant-id username password new-password)))
 
-(defn change-password! [user-id password new-password]
-  (try-command @store-atom (user-command/change-password! user-id password new-password)))
+(defn change-user-name! [tenant-id username first-name last-name]
+  (try-command @store-atom (user-command/change-name! tenant-id username first-name last-name)))
 
-(defn change-user-name! [user-id first-name last-name]
-  (try-command @store-atom (user-command/change-name! user-id first-name last-name)))
+(defn enable-user! [tenant-id username]
+  (try-command @store-atom (user-command/enable! tenant-id username)))
 
-(defn enable-user! [user-id tenant-id]
-  (try-command @store-atom (user-command/enable! user-id tenant-id)))
-
-(defn disable-user! [user-id tenant-id]
-  (try-command @store-atom (user-command/disable! user-id tenant-id)))
+(defn disable-user! [tenant-id username]
+  (try-command @store-atom (user-command/disable! tenant-id username)))
 
 (defn setup!
   [event-store]

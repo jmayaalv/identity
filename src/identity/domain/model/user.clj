@@ -5,11 +5,15 @@
             [rill.aggregate :refer [handle-event]])
   (:import (java.util Date)))
 
-(defrecord User [user-id tenant-id first-name last-name username password enablement])
+(defrecord User [tenant-id first-name last-name username password enablement])
 (defrecord ContactInformation [email])
 (defrecord Enablement [enabled start-date])
 (defrecord Address [country-code city postal-code province street])
 (defrecord Authentication [user-id username])
+
+(defn user-id
+  [{:keys [tenant-id username]}]
+  (str "user: " tenant-id ":" username))
 
 (defn indefinite-enablement []
   (->Enablement true (time/now)))
@@ -35,55 +39,44 @@
 (defn disabled? [tenant]
   ((complement enabled?) tenant))
 
-(defn valid-credentials? [{:keys [user-id username password]} c_username c_password]
+(defn valid-credentials? [{:keys [tenant-id username password]} c_username c_password]
   (and (= username c_username)
-       (= password (encrypt! c_password user-id))))
+       (= password (encrypt! c_password tenant-id))))
 
 (defn invalid-credentials? [user username password]
   ((complement valid-credentials?) user username password))
 
 (defevent Registered
           :tenant-id s/Uuid
-          :user-id s/Uuid
           :first-name s/Str
           :last-name s/Str
           :email s/Str
           :username s/Str
-          :password s/Str)
-
-(defmethod primary-aggregate-id ::Registered
-  [{:keys [user-id]}]
-  user-id)
+          :password s/Str
+          user-id)
 
 (defmethod handle-event ::Registered
-  [_ {:keys [tenant-id user-id first-name last-name email username password]}]
-  (let [user (->User user-id tenant-id first-name last-name username password (indefinite-enablement))
+  [_ {:keys [tenant-id first-name last-name email username password]}]
+  (let [user (->User tenant-id first-name last-name username password (indefinite-enablement))
         contact-info (->ContactInformation email)]
     (assoc user :contact-info contact-info)))
 
-;(defevent Authenticated
-;          :user-id s/Uuid)
-
-(defevent EmailChanged
-          :user-id s/Uuid
-          :email s/Str)
-
-(defmethod handle-event ::EmailChanged
-  [user {:keys [email]}]
-  (assoc-in user [:contact-info :email] email))
-
 (defevent PasswordChanged
-          :user-id s/Uuid
-          :password s/Str)
+          :tenant-id s/Uuid
+          :username s/Uuid
+          :password s/Str
+          user-id)
 
 (defmethod handle-event ::PasswordChanged
   [user {:keys [password]}]
   (assoc user :password password))
 
 (defevent NameChanged
-          :user-id s/Uuid
+          :tenant-id s/Uuid
+          :username s/Str
           :first-name s/Str
-          :last-name s/Str)
+          :last-name s/Str
+          user-id)
 
 (defmethod handle-event ::NameChanged
   [user {:keys [first-name last-name]}]
@@ -91,9 +84,11 @@
               :last-name last-name))
 
 (defevent EnablementDefined
-          :user-id s/Uuid
+          :tenant-id s/Uuid
+          :username s/Str
           :start-date Date
-          :end-date Date)
+          :end-date Date
+          user-id)
 
 (defmethod handle-event ::EnablementDefined
   [user {:keys [start-date end-date]}]
@@ -102,7 +97,9 @@
       (assoc-in [:enablement :end-date] end-date)))
 
 (defevent Enabled
-          :user-id s/Uuid)
+          :tenant-id s/Uuid
+          :username s/Str
+          user-id)
 
 (defmethod handle-event ::Enabled
   [user _]
@@ -112,7 +109,9 @@
       (assoc-in [:enablement :end-date] nil)))
 
 (defevent Disabled
-          :user-id s/Uuid)
+          :tenant-id s/Uuid
+          :username s/Str
+          user-id)
 
 (defmethod handle-event ::Disabled
   [user _]

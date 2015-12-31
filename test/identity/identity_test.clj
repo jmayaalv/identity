@@ -13,16 +13,16 @@
     (let [tenant-id (new-uuid)
           name "A tenant"
           description "The tenant description"
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sauze.com"
           username "kaiser"
           password "thepwass"
+          user-id (user/user-id {:tenant-id tenant-id :username username})
           store (given [])
           _ (identity/setup! store)
           _ (identity/provision-tenant! tenant-id name description
-                                        user-id first-name last-name email username password)
+                                        first-name last-name email username password)
           tenant (load-aggregate (retrieve-events store tenant-id))
           user (load-aggregate (retrieve-events store user-id))]
       (is (= name (:name tenant)))
@@ -31,7 +31,7 @@
       (is (= last-name (:last-name user)))
       (is (= username (:username user)))
       (is (= email (get-in user [:contact-info :email])))
-      (is (= (user/encrypt! password user-id) (:password user)))
+      (is (= (user/encrypt! password tenant-id) (:password user)))
       (is (user/enabled? user)))))
 
 (deftest test-tenant-status
@@ -82,26 +82,25 @@
 (deftest test-user-registration
   (testing "User can be register to an active tenant"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
+          user-id (user/user-id {:tenant-id tenant-id :username username})
           store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc")
                         (tenant/activated tenant-id)])
           _ (identity/setup! store)
-          _ (identity/register-user! tenant-id user-id first-name last-name email username password)
+          _ (identity/register-user! tenant-id first-name last-name email username password)
           user (load-aggregate (retrieve-events store user-id))]
       (is (= first-name (:first-name user)))
       (is (= last-name (:last-name user)))
       (is (= username (:username user)))
       (is (= email (get-in user [:contact-info :email])))
-      (is (= (user/encrypt! password user-id) (:password user)))
+      (is (= (user/encrypt! password tenant-id) (:password user)))
       (is (user/enabled? user))))
   (testing "User can not register to an inactive tenant"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
@@ -111,88 +110,71 @@
                         (tenant/activated tenant-id)
                         (tenant/deactivated tenant-id)])
           _ (identity/setup! store)
-          [status _] (identity/register-user! tenant-id user-id first-name last-name email username password)]
+          [status _] (identity/register-user! tenant-id first-name last-name email username password)]
+      (is (= status :rejected))))
+  (testing "User can not register if username already exists"
+    (let [tenant-id (new-uuid)
+          first-name "Kaiser"
+          last-name "Sausze"
+          email "kaiser@sausze.com"
+          username "theuser"
+          password "thepass"
+          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc")
+                        (tenant/activated tenant-id)
+                        (user/registered tenant-id first-name last-name email username password)])
+          _ (identity/setup! store)
+          [status _] (identity/register-user! tenant-id first-name last-name email username password)]
       (is (= status :rejected)))))
 
 (deftest test-user-info
   (testing "User can change the password"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
           new-pass "newpass"
-          store (given [(user/registered tenant-id user-id first-name last-name email username password)])
+          user-id (user/user-id {:tenant-id tenant-id :username username})
+          store (given [(user/registered tenant-id first-name last-name email username password)])
           _ (identity/setup! store)
-          _ (identity/change-password! user-id password new-pass)
+          _ (identity/change-password! tenant-id username password new-pass)
           user (load-aggregate (retrieve-events store user-id))]
       (is (user/valid-credentials? user username new-pass))))
   (testing "User can't change the password if invalid credentials provided"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
           new-pass "newpass"
-          store (given [(user/registered tenant-id user-id first-name last-name email username password)])
+          user-id (user/user-id {:tenant-id tenant-id :username username})
+          store (given [(user/registered tenant-id first-name last-name email username password)])
           _ (identity/setup! store)
-          [status _] (identity/change-password! user-id "invalid pass" new-pass)
+          [status _] (identity/change-password! tenant-id username "invalid pass" new-pass)
           user (load-aggregate (retrieve-events store user-id))]
       (is (= password (:password user)))
       (is (= status :rejected))))
 
   (testing "User password can't be blank"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
           new-pass "      "
-          store (given [(user/registered tenant-id user-id first-name last-name email username password)])
+          user-id (user/user-id {:tenant-id tenant-id :username username})
+          store (given [(user/registered tenant-id first-name last-name email username password)])
           _ (identity/setup! store)
-          [status _] (identity/change-password! user-id password new-pass)
+          [status _] (identity/change-password! tenant-id username password new-pass)
           user (load-aggregate (retrieve-events store user-id))]
       (is (= password (:password user)))
       (is (= status :rejected))))
 
-  (testing "User can change the email"
-    (let [tenant-id (new-uuid)
-          user-id (new-uuid)
-          first-name "Kaiser"
-          last-name "Sausze"
-          email "kaiser@sausze.com"
-          username "theuser"
-          password "thepass"
-          new-email "newemail@kaiser.com"
-          store (given [(user/registered tenant-id user-id first-name last-name email username password)])
-          _ (identity/setup! store)
-          _ (identity/change-email! user-id new-email)
-          user (load-aggregate (retrieve-events store user-id))]
-      (is (= new-email (get-in user [:contact-info :email])))))
-  (testing "User email can not be set to blank"
-    (let [tenant-id (new-uuid)
-          user-id (new-uuid)
-          first-name "Kaiser"
-          last-name "Sausze"
-          email "kaiser@sausze.com"
-          username "theuser"
-          password "thepass"
-          store (given [(user/registered tenant-id user-id first-name last-name email username password)])
-          _ (identity/setup! store)
-          [status _] (identity/change-email! user-id " ")
-          user (load-aggregate (retrieve-events store user-id))]
-      (is (= status :rejected))
-      (is (= email (get-in user [:contact-info :email])))))
-
   (testing "User can change its name"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
@@ -200,9 +182,10 @@
           password "thepass"
           new-first-name "Kevin"
           new-last-name "Spacey"
-          store (given [(user/registered tenant-id user-id first-name last-name email username password)])
+          user-id (user/user-id {:tenant-id tenant-id :username username})
+          store (given [(user/registered tenant-id first-name last-name email username password)])
           _ (identity/setup! store)
-          _ (identity/change-user-name! user-id new-first-name new-last-name)
+          _ (identity/change-user-name! tenant-id username new-first-name new-last-name)
           user (load-aggregate (retrieve-events store user-id))]
       (is (= new-first-name (:first-name user))
           (= new-last-name (:last-name user))))))
@@ -210,37 +193,74 @@
 (deftest test-user-enablement
   (testing "User can be disabled"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
+          user-id (user/user-id {:tenant-id tenant-id :username username})
           store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
                         (tenant/activated tenant-id)
-                        (user/registered tenant-id user-id first-name last-name email username password)
-                        (user/enabled user-id)])
+                        (user/registered tenant-id first-name last-name email username password)
+                        (user/enabled tenant-id username)])
           _ (identity/setup! store)
-          [_ _] (identity/disable-user! user-id tenant-id)
+          [_ _] (identity/disable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
       (is (user/disabled? user))))
 
   (testing "User can't be disabled if tenant is inactive"
     (let [tenant-id (new-uuid)
-          user-id (new-uuid)
           first-name "Kaiser"
           last-name "Sausze"
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
+          user-id (user/user-id {:tenant-id tenant-id :username username})
           store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
                         (tenant/activated tenant-id)
                         (tenant/deactivated tenant-id)
-                        (user/registered tenant-id user-id first-name last-name email username password)
-                        (user/enabled user-id)])
+                        (user/registered tenant-id first-name last-name email username password)
+                        (user/enabled tenant-id username)])
           _ (identity/setup! store)
-          [status _] (identity/disable-user! user-id tenant-id)
+          [status _] (identity/disable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
       (is (user/enabled? user))
       (is (= status :rejected))))
+
+  (testing "User can be enabled"
+    (let [tenant-id (new-uuid)
+          first-name "Kaiser"
+          last-name "Sausze"
+          email "kaiser@sausze.com"
+          username "theuser"
+          password "thepass"
+          user-id (user/user-id {:tenant-id tenant-id :username username})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (user/registered tenant-id first-name last-name email username password)
+                        (user/disabled tenant-id username)])
+          _ (identity/setup! store)
+          [_ _] (identity/enable-user! tenant-id username)
+          user (load-aggregate (retrieve-events store user-id))]
+      (is (user/enabled? user))))
+
+  (testing "User can't be enabled if tenant is inactive"
+    (let [tenant-id (new-uuid)
+          first-name "Kaiser"
+          last-name "Sausze"
+          email "kaiser@sausze.com"
+          username "theuser"
+          password "thepass"
+          user-id (user/user-id {:tenant-id tenant-id :username username})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (tenant/deactivated tenant-id)
+                        (user/registered tenant-id first-name last-name email username password)
+                        (user/disabled tenant-id username)])
+          _ (identity/setup! store)
+          [status _] (identity/enable-user! tenant-id username)
+          user (load-aggregate (retrieve-events store user-id))]
+      (is (user/disabled? user))
+      (is (= status :rejected))))
+
   )
