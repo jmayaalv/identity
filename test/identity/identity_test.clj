@@ -6,6 +6,7 @@
             [identity.identity :as identity]
             [identity.domain.model.tenant :as tenant]
             [identity.domain.model.user :as user]
+            [identity.domain.model.group :as group]
             [identity.infrastructure.common :refer [new-uuid]]))
 
 (deftest test-provision-tenant
@@ -261,6 +262,67 @@
           [status _] (identity/enable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
       (is (user/disabled? user))
+      (is (= status :rejected)))))
+
+(deftest test-group
+  (testing "A group can be added"
+    (let [tenant-id (new-uuid)
+          name "group 1"
+          description "The desc"
+          group-id (group/group-id {:tenant-id tenant-id :name name})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)])
+          _ (identity/setup! store)
+          [_ _] (identity/provision-group! tenant-id name description)
+          group (load-aggregate (retrieve-events store group-id))]
+      (is (= name (:name group)))
+      (is (= tenant-id (:tenant-id group)))
+      (is (= description (:description group)))))
+
+  (testing "A group can't be added to an inactive tenant"
+    (let [tenant-id (new-uuid)
+          name "group 1"
+          description "The desc"
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (tenant/deactivated tenant-id)])
+          _ (identity/setup! store)
+          [status _] (identity/provision-group! tenant-id name description)]
       (is (= status :rejected))))
 
+  (testing "A duplicated group can't be added"
+    (let [tenant-id (new-uuid)
+          name "group 1"
+          description "The desc"
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (group/provisioned tenant-id name description)])
+          _ (identity/setup! store)
+          [status _] (identity/provision-group! tenant-id name description)]
+      (is (= status :rejected))))
+
+  (testing "A group with a blank name can't be added"
+    (let [tenant-id (new-uuid)
+          name "  "
+          description "The desc"
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (group/provisioned tenant-id name description)])
+          _ (identity/setup! store)
+          [status _] (identity/provision-group! tenant-id name description)]
+      (is (= status :rejected))))
+
+  (testing "Add a group to another group"
+    (let [tenant-id (new-uuid)
+          parent "parent"
+          child "child"
+          group-id (group/group-id {:tenant-id tenant-id :name parent})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (group/provisioned tenant-id parent nil)
+                        (group/provisioned tenant-id child nil)])
+          _ (identity/setup! store)
+          [status r] (identity/add-group-member! tenant-id parent child)
+          group (load-aggregate (retrieve-events store group-id))]
+      (is (group/member? group child :group))))
   )

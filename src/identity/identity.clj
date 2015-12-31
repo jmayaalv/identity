@@ -1,7 +1,8 @@
 (ns identity.identity
   (:require [rill.handler :refer [try-command]]
             [identity.application.command.tenant :as tenant-command]
-            [identity.application.command.user :as user-command]))
+            [identity.application.command.user :as user-command]
+            [identity.application.command.group :as group-command]))
 
 (defonce store-atom (atom nil))                             ;;fixme add a real store
 
@@ -46,6 +47,21 @@
 
 (defn disable-user! [tenant-id username]
   (try-command @store-atom (user-command/disable! tenant-id username)))
+
+(defn provision-group! [tenant-id name description]
+  (try-command @store-atom (group-command/provision! tenant-id name description)))
+
+(defn add-group-member! [tenant-id parent child]
+  (try-command @store-atom (group-command/add-group-member! tenant-id parent child)))
+
+(defn remove-group-member! [tenant-id parent child]
+  (try-command @store-atom (group-command/remove-group-member! tenant-id parent child)))
+
+(defn add-user-member! [tenant-id username child]
+  (try-command @store-atom (group-command/add-user-member! tenant-id username child)))
+
+(defn remove-user-member! [tenant-id username child]
+  (try-command @store-atom (group-command/remove-user-member! tenant-id username child)))
 
 (defn setup!
   [event-store]

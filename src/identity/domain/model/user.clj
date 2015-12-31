@@ -147,7 +147,6 @@
 ;          :phone s/Str)
 
 
-
 ;(defevent RoleAdded
 ;          :user-id s/Uuid
 ;          :role s/Keyword)
