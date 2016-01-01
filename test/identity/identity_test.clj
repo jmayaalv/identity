@@ -322,7 +322,48 @@
                         (group/provisioned tenant-id parent nil)
                         (group/provisioned tenant-id child nil)])
           _ (identity/setup! store)
-          [status r] (identity/add-group-member! tenant-id parent child)
+          [_ _] (identity/add-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
       (is (group/member? group child :group))))
+
+  (testing "Don't add a group if tenant inactive"
+    (let [tenant-id (new-uuid)
+          parent "parent"
+          child "child"
+          group-id (group/group-id {:tenant-id tenant-id :name parent})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (tenant/deactivated tenant-id)
+                        (group/provisioned tenant-id parent nil)
+                        (group/provisioned tenant-id child nil)])
+          _ (identity/setup! store)
+          [status _] (identity/add-group-member! tenant-id parent child)
+          group (load-aggregate (retrieve-events store group-id))]
+      (is (not (group/member? group child :group)))
+      (is (= status :rejected))))
+
+  (testing "Don't add group if child doesn't exist"
+    (let [tenant-id (new-uuid)
+          parent "parent"
+          child "child"
+          group-id (group/group-id {:tenant-id tenant-id :name parent})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (group/provisioned tenant-id parent nil)])
+          _ (identity/setup! store)
+          [status _] (identity/add-group-member! tenant-id parent child)
+          group (load-aggregate (retrieve-events store group-id))]
+      (is (= status :rejected))
+      (is (not (group/member? group child :group)))))
+
+  (testing "Don't add group if parent doesn't exist"
+    (let [tenant-id (new-uuid)
+          parent "parent"
+          child "child"
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (group/provisioned tenant-id child nil)])
+          _ (identity/setup! store)
+          [status _] (identity/add-group-member! tenant-id parent child)]
+      (is (= status :rejected))))
   )
