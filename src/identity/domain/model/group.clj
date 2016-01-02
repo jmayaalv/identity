@@ -44,13 +44,14 @@
 (defevent GroupMemberRemoved
           :tenant-id s/Uuid
           :name s/Str
-          :child s/Str)
+          :child s/Str
+          group-id)
 
 (defmethod handle-event ::GroupMemberRemoved
   [group {:keys [child]}]
   (let [current-members (:members group #{})
-        group-to-remove (member group child :group)]
-    (assoc group :members (disj current-members group-to-remove))))
+        to-remove (member group child :group)]
+    (assoc group :members (disj current-members to-remove))))
 
 (defevent UserMemberAdded
           :tenant-id s/Uuid
@@ -66,7 +67,8 @@
 (defevent UserMemberRemoved
           :tenant-id s/Uuid
           :name s/Str
-          :child s/Str)
+          :child s/Str
+          group-id)
 
 (defmethod handle-event ::UserMemberRemoved
   [group {:keys [child]}]
