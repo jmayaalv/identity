@@ -104,7 +104,7 @@
 
 (defmethod aggregate-ids ::RemoveUserMember!
   [_ c]
-  (group-aggregate-ids c))
+  (user-aggregate-ids c))
 
 (defmethod handle-command ::RemoveUserMember!
   [group {:keys [tenant-id name username]} tenant user]

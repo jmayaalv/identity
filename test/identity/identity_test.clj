@@ -440,7 +440,6 @@
                         (tenant/activated tenant-id)
                         (user/registered tenant-id "first-name" "last-name" "email@dot.com" username "password")
                         (group/provisioned tenant-id parent nil)
-                        (group/provisioned tenant-id child nil)
                         (tenant/deactivated tenant-id)])
           _ (identity/setup! store)
           [status _] (identity/add-user-member! tenant-id parent username)
@@ -448,4 +447,19 @@
       (is (not (group/member? group username :user)))
       (is (= status :rejected))))
 
+  (testing "An user member can be removed from a group"
+    (let [tenant-id (new-uuid)
+          parent "parent"
+          child "child"
+          username "username"
+          group-id (group/group-id {:tenant-id tenant-id :name parent})
+          store (given [(tenant/provisioned tenant-id "Tenant" "Desc")
+                        (tenant/activated tenant-id)
+                        (user/registered tenant-id "first-name" "last-name" "email@dot.com" username "password")
+                        (group/provisioned tenant-id parent nil)
+                        (group/user-member-added tenant-id parent username)])
+          _ (identity/setup! store)
+          [status _] (identity/remove-user-member! tenant-id parent username)
+          group (load-aggregate (retrieve-events store group-id))]
+      (is (not (group/member? group username :user)))))
   )
