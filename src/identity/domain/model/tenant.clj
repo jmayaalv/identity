@@ -1,7 +1,9 @@
 (ns identity.domain.model.tenant
   (:require [schema.core :as s]
-            [rill.message :refer [defevent]]
-            [rill.aggregate :refer [handle-event]]))
+            [rill.message :refer [defevent observers]]
+            [rill.aggregate :refer [handle-event]]
+            [identity.domain.model.notifications :refer [notify-user notify-role notify-group]]
+            [identity.domain.model.role :as role]))
 
 (defrecord Tenant [tenant-id name description])
 
@@ -17,11 +19,22 @@
 (defevent Provisioned
           :tenant-id s/Uuid
           :name s/Str
-          :description s/Str)
+          :description s/Str
+          :admin-first-name s/Str
+          :admin-last-name s/Str
+          :admin-email s/Str
+          :admin-username s/Str
+          :admin-password s/Str)
 
 (defmethod handle-event ::Provisioned
   [_ {:keys [tenant-id name description]}]
   (->Tenant tenant-id name description))
+
+(defmethod observers ::Provisioned
+  [{:keys [tenant-id]}]
+  [[tenant-id notify-user]
+   [tenant-id notify-role]
+   [(role/role-id {:tenant-id tenant-id :role-name role/admin-role-name}) notify-group]])
 
 (defevent Activated
           :tenant-id s/Uuid)

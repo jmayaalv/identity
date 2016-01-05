@@ -10,14 +10,20 @@
 (defcommand Provision!
             :tenant-id s/Uuid
             :name s/Str
-            :description s/Str)
+            :description s/Str
+            :admin-first-name s/Str
+            :admin-last-name s/Str
+            :admin-email s/Str
+            :admin-username s/Str
+            :admin-password s/Str)
 
 (defmethod handle-command ::Provision!
-  [_ {:keys [tenant-id name description]}]
+  [_ {:keys [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]}]
   (cond
     (blank? name) [:rejected [:name "Can't be blank"]]
     :else
-    [:ok [(tenant/provisioned tenant-id name description)
+    [:ok [(tenant/provisioned tenant-id name description admin-first-name admin-last-name admin-email admin-username
+                              (user/encrypt! admin-password tenant-id))
           (tenant/activated tenant-id)]]))
 
 (defcommand Activate!

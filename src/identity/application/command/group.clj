@@ -3,8 +3,10 @@
             [rill.aggregate :refer [handle-command aggregate-ids]]
             [rill.message :refer [defcommand]]
             [schema.core :as s]
+            [identity.domain.model.notifications :refer [notify-group]]
             [identity.domain.model.tenant :as tenant]
             [identity.domain.model.user :as user]
+            [identity.domain.model.role :as role]
             [identity.domain.model.group :as group]))
 
 (defn group-aggregate-ids
@@ -115,3 +117,16 @@
     (not (group/member? group username :user)) [:rejected [:not-member "Child is not member of the group"]]
     :else
     [:ok [(group/user-member-removed tenant-id name username)]]))
+
+(defmethod notify-group ::tenant/Provisioned
+  [{:keys [group-name]} {:keys [tenant-id admin-username]} _]
+  [(group/created tenant-id group-name  nil)
+   (group/user-member-added tenant-id group-name admin-username)])
+
+(defmethod notify-group ::role/Provisioned
+  [_ {:keys [tenant-id group-name]} _]
+  [(group/provisioned tenant-id group-name nil)])
+
+(defmethod notify-group ::role/UserAssigned
+  [{:keys [group-name]} {:keys [tenant-id username]} _]
+  [(group/user-member-added tenant-id group-name username)])

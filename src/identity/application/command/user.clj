@@ -3,6 +3,7 @@
             [rill.aggregate :refer [handle-command aggregate-ids]]
             [rill.message :refer [defcommand primary-aggregate-id]]
             [schema.core :as s]
+            [identity.domain.model.notifications :refer [notify-user]]
             [identity.domain.model.tenant :as tenant]
             [identity.domain.model.user :as user])
   (:import (java.util Date)))
@@ -13,7 +14,7 @@
             :first-name s/Str
             :last-name s/Str
             :email s/Str
-            :username s/Str
+              :username s/Str
             :password s/Str
             user/user-id)
 
@@ -138,3 +139,8 @@
     (user/disabled? user) [:rejected [:user-disabled "User is already disabled"]]
     :else
     [:ok [(user/disabled tenant-id username)]]))
+
+(defmethod notify-user ::tenant/Provisioned
+  [_ {:keys [tenant-id admin-first-name admin-last-name admin-email admin-username admin-password]} _]
+  [(user/registered tenant-id admin-first-name admin-last-name admin-email admin-username admin-password)
+   (user/enabled tenant-id admin-username)])

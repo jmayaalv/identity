@@ -1,21 +1,26 @@
 (ns identity.identity
   (:require [rill.handler :refer [try-command]]
+            [rill.aggregate :refer [load-aggregate]]
+            [rill.event-store :refer [retrieve-events]]
             [identity.application.command.tenant :as tenant-command]
             [identity.application.command.user :as user-command]
-            [identity.application.command.group :as group-command]))
+            [identity.application.command.group :as group-command]
+            [identity.application.command.role :as role-command]
+            [identity.domain.model.user :as user]
+            [identity.domain.model.role :as role]))
 
 (defonce store-atom (atom nil))                             ;;fixme add a real store
+
+(defn- aggregate
+  [agg-id]
+  (load-aggregate (retrieve-events @store-atom agg-id)))
 
 (defn provision-tenant!
   "Creates a new tenant"
   [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]
-  (do (try-command @store-atom
-                   (tenant-command/provision! tenant-id name description))
-      (try-command @store-atom
-                   (tenant-command/activate! tenant-id))
-      (try-command @store-atom (user-command/register! tenant-id admin-first-name admin-last-name
-                                                       admin-email admin-username admin-password))
-      ))
+    (try-command @store-atom (tenant-command/provision! tenant-id name description admin-first-name admin-last-name
+                            admin-email admin-username admin-password)))
+
 
 (defn activate-tenant!
   [tenant-id]
@@ -62,6 +67,25 @@
 
 (defn remove-user-member! [tenant-id username child]
   (try-command @store-atom (group-command/remove-user-member! tenant-id username child)))
+
+(defn provision-role! [tenant-id role-name description supports-nesting]
+  (try-command @store-atom (role-command/provision! tenant-id role-name description supports-nesting)))
+
+(defn assign-user-to-role! [tenant-id role-name username]
+  (try-command @store-atom (role-command/assign-user! tenant-id role-name username)))
+
+(defn unassign-user-to-role! [tenant-id role-name username]
+  (try-command @store-atom (role-command/unassign-user! tenant-id role-name username)))
+
+(defn assign-group-to-role! [tenant-id role-name group-name]
+  (try-command @store-atom (role-command/assign-user! tenant-id role-name group-name)))
+
+(defn unassign-group-to-role! [tenant-id role-name group-name]
+  (try-command @store-atom (role-command/unassign-user! tenant-id role-name group-name)))
+
+(defn in-role? [tenant-id username role-name]
+  (let [role (aggregate (role/role-id {:tenant-id tenant-id :role-name role-name}))]
+    (role/in-role? role {:tenant-id tenant-id :username username} @store-atom)))
 
 (defn setup!
   [event-store]

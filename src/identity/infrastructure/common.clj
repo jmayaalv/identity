@@ -5,3 +5,4 @@
   "returns a new uuid"
   []
    (UUID/randomUUID))
+

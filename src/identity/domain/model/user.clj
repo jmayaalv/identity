@@ -2,7 +2,8 @@
   (:require [schema.core :as s]
             [clj-time.core :as time]
             [rill.message :refer [defevent primary-aggregate-id]]
-            [rill.aggregate :refer [handle-event]])
+            [rill.event-store :refer [retrieve-events]]
+            [rill.aggregate :refer [handle-event load-aggregate]])
   (:import (java.util Date)))
 
 (defrecord User [tenant-id first-name last-name username password enablement])
@@ -17,7 +18,6 @@
 
 (defn indefinite-enablement []
   (->Enablement true (time/now)))
-
 
 (defn full-name [{:keys [first_name last_name]}]
   (str first_name " " last_name))
