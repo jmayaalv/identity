@@ -1,7 +1,7 @@
 (ns identity.identity
   (:require [rill.handler :refer [try-command]]
             [rill.aggregate :refer [load-aggregate]]
-            [rill.event-store :refer [retrieve-events]]
+            [rill.repository :refer [retrieve-aggregate]]
             [identity.application.command.tenant :as tenant-command]
             [identity.application.command.user :as user-command]
             [identity.application.command.group :as group-command]
@@ -11,16 +11,11 @@
 
 (defonce store-atom (atom nil))                             ;;fixme add a real store
 
-(defn- aggregate
-  [agg-id]
-  (load-aggregate (retrieve-events @store-atom agg-id)))
-
 (defn provision-tenant!
   "Creates a new tenant"
   [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]
     (try-command @store-atom (tenant-command/provision! tenant-id name description admin-first-name admin-last-name
                             admin-email admin-username admin-password)))
-
 
 (defn activate-tenant!
   [tenant-id]
@@ -84,7 +79,7 @@
   (try-command @store-atom (role-command/unassign-user! tenant-id role-name group-name)))
 
 (defn in-role? [tenant-id username role-name]
-  (let [role (aggregate (role/role-id {:tenant-id tenant-id :role-name role-name}))]
+  (let [role (retrieve-aggregate @store-atom (role/role-id {:tenant-id tenant-id :role-name role-name}))]
     (role/in-role? role {:tenant-id tenant-id :username username} @store-atom)))
 
 (defn setup!

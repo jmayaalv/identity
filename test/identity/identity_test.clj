@@ -2,6 +2,7 @@
   (:use clojure.test)
   (:require [rill.aggregate :refer [load-aggregate]]
             [rill.event-store :refer [retrieve-events]]
+            [rill.repository :refer [wrap-basic-repository]]
             [rill.temp-store :refer [given]]
             [identity.identity :as identity]
             [identity.domain.model.tenant :as tenant]
@@ -21,7 +22,7 @@
           username "kaiser"
           password "thepwass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [])
+          store (wrap-basic-repository (given []))
           _ (identity/setup! store)
           [status _] (identity/provision-tenant! tenant-id name description
                                         first-name last-name email username password)
@@ -43,8 +44,8 @@
           name "A tenant"
           description "The tenant description"
           new-name "New tenant"
-          store (given [(tenant/provisioned tenant-id name description "first-name" "last-name" "email@tan.com"
-                                            "username" "password")])
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id name description "first-name" "last-name" "email@tan.com"
+                                            "username" "password")]))
           _ (identity/setup! store)
           _ (identity/change-tenant-name! tenant-id new-name)
           tenant (load-aggregate (retrieve-events store tenant-id))]
@@ -66,8 +67,8 @@
     (let [tenant-id (new-uuid)
           name "A tenant"
           description "The tenant description"
-          store (given [(tenant/provisioned tenant-id name description "first-name" "last-name" "email@tan.com"
-                                            "username" "password")])
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id name description "first-name" "last-name" "email@tan.com"
+                                            "username" "password")]))
           _ (identity/setup! store)
           _ (identity/activate-tenant! tenant-id)
           tenant (load-aggregate (retrieve-events store tenant-id))]
@@ -77,9 +78,9 @@
     (let [tenant-id (new-uuid)
           name "A tenant"
           description "The tenant description"
-          store (given [(tenant/provisioned tenant-id name description "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id name description "first-name" "last-name" "email@tan.com"
                                             "username" "password")
-                        (tenant/activated tenant-id)])
+                        (tenant/activated tenant-id)]))
           _ (identity/setup! store)
           _ (identity/deactivate-tenant! tenant-id)
           tenant (load-aggregate (retrieve-events store tenant-id))]
@@ -95,10 +96,9 @@
           username "theuser"
           password "thepass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [
-                        (tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
-                        (tenant/activated tenant-id)])
+                        (tenant/activated tenant-id)]))
           _ (identity/setup! store)
           _ (identity/register-user! tenant-id first-name last-name email username password)
           user (load-aggregate (retrieve-events store user-id))]
@@ -115,10 +115,10 @@
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (tenant/deactivated tenant-id)])
+                        (tenant/deactivated tenant-id)]))
           _ (identity/setup! store)
           [status _] (identity/register-user! tenant-id first-name last-name email username password)]
       (is (= status :rejected))))
@@ -129,10 +129,10 @@
           email "kaiser@sausze.com"
           username "theuser"
           password "thepass"
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (user/registered tenant-id first-name last-name email username password)])
+                        (user/registered tenant-id first-name last-name email username password)]))
           _ (identity/setup! store)
           [status _] (identity/register-user! tenant-id first-name last-name email username password)]
       (is (= status :rejected)))))
@@ -147,7 +147,7 @@
           password "thepass"
           new-pass "newpass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(user/registered tenant-id first-name last-name email username password)])
+          store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
           _ (identity/setup! store)
           _ (identity/change-password! tenant-id username password new-pass)
           user (load-aggregate (retrieve-events store user-id))]
@@ -161,7 +161,7 @@
           password "thepass"
           new-pass "newpass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(user/registered tenant-id first-name last-name email username password)])
+          store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
           _ (identity/setup! store)
           [status _] (identity/change-password! tenant-id username "invalid pass" new-pass)
           user (load-aggregate (retrieve-events store user-id))]
@@ -177,7 +177,7 @@
           password "thepass"
           new-pass "      "
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(user/registered tenant-id first-name last-name email username password)])
+          store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
           _ (identity/setup! store)
           [status _] (identity/change-password! tenant-id username password new-pass)
           user (load-aggregate (retrieve-events store user-id))]
@@ -194,7 +194,7 @@
           new-first-name "Kevin"
           new-last-name "Spacey"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(user/registered tenant-id first-name last-name email username password)])
+          store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
           _ (identity/setup! store)
           _ (identity/change-user-name! tenant-id username new-first-name new-last-name)
           user (load-aggregate (retrieve-events store user-id))]
@@ -210,11 +210,11 @@
           username "theuser"
           password "thepass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (user/registered tenant-id first-name last-name email username password)
-                        (user/enabled tenant-id username)])
+                        (user/enabled tenant-id username)]))
           _ (identity/setup! store)
           [_ _] (identity/disable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
@@ -228,12 +228,12 @@
           username "theuser"
           password "thepass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (tenant/deactivated tenant-id)
                         (user/registered tenant-id first-name last-name email username password)
-                        (user/enabled tenant-id username)])
+                        (user/enabled tenant-id username)]))
           _ (identity/setup! store)
           [status _] (identity/disable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
@@ -248,11 +248,11 @@
           username "theuser"
           password "thepass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (user/registered tenant-id first-name last-name email username password)
-                        (user/disabled tenant-id username)])
+                        (user/disabled tenant-id username)]))
           _ (identity/setup! store)
           [_ _] (identity/enable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
@@ -266,12 +266,12 @@
           username "theuser"
           password "thepass"
           user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (tenant/deactivated tenant-id)
                         (user/registered tenant-id first-name last-name email username password)
-                        (user/disabled tenant-id username)])
+                        (user/disabled tenant-id username)]))
           _ (identity/setup! store)
           [status _] (identity/enable-user! tenant-id username)
           user (load-aggregate (retrieve-events store user-id))]
@@ -284,9 +284,9 @@
           name "group 1"
           description "The desc"
           group-id (group/group-id {:tenant-id tenant-id :name name})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
-                        (tenant/activated tenant-id)])
+                        (tenant/activated tenant-id)]))
           _ (identity/setup! store)
           [_ _] (identity/provision-group! tenant-id name description)
           group (load-aggregate (retrieve-events store group-id))]
@@ -298,10 +298,10 @@
     (let [tenant-id (new-uuid)
           name "group 1"
           description "The desc"
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (tenant/deactivated tenant-id)])
+                        (tenant/deactivated tenant-id)]))
           _ (identity/setup! store)
           [status _] (identity/provision-group! tenant-id name description)]
       (is (= status :rejected))))
@@ -310,10 +310,10 @@
     (let [tenant-id (new-uuid)
           name "group 1"
           description "The desc"
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (group/provisioned tenant-id name description)])
+                        (group/provisioned tenant-id name description)]))
           _ (identity/setup! store)
           [status _] (identity/provision-group! tenant-id name description)]
       (is (= status :rejected))))
@@ -322,10 +322,10 @@
     (let [tenant-id (new-uuid)
           name "  "
           description "The desc"
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (group/provisioned tenant-id name description)])
+                        (group/provisioned tenant-id name description)]))
           _ (identity/setup! store)
           [status _] (identity/provision-group! tenant-id name description)]
       (is (= status :rejected))))
@@ -335,11 +335,11 @@
           parent "parent"
           child "child"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (group/provisioned tenant-id parent nil)
-                        (group/provisioned tenant-id child nil)])
+                        (group/provisioned tenant-id child nil)]))
           _ (identity/setup! store)
           [_ _] (identity/add-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
@@ -350,12 +350,12 @@
           parent "parent"
           child "child"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (group/provisioned tenant-id parent nil)
                         (group/provisioned tenant-id child nil)
-                        (group/group-member-added tenant-id parent child)])
+                        (group/group-member-added tenant-id parent child)]))
           _ (identity/setup! store)
           [status _] (identity/add-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
@@ -366,12 +366,12 @@
           parent "parent"
           child "child"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (tenant/deactivated tenant-id)
                         (group/provisioned tenant-id parent nil)
-                        (group/provisioned tenant-id child nil)])
+                        (group/provisioned tenant-id child nil)]))
           _ (identity/setup! store)
           [status _] (identity/add-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
@@ -383,10 +383,10 @@
           parent "parent"
           child "child"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (group/provisioned tenant-id parent nil)])
+                        (group/provisioned tenant-id parent nil)]))
           _ (identity/setup! store)
           [status _] (identity/add-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
@@ -397,10 +397,10 @@
     (let [tenant-id (new-uuid)
           parent "parent"
           child "child"
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (group/provisioned tenant-id child nil)])
+                        (group/provisioned tenant-id child nil)]))
           _ (identity/setup! store)
           [status _] (identity/add-group-member! tenant-id parent child)]
       (is (= status :rejected))))
@@ -410,12 +410,12 @@
           parent "parent"
           child "child"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (group/provisioned tenant-id parent nil)
                         (group/provisioned tenant-id child nil)
-                        (group/group-member-added tenant-id parent child)])
+                        (group/group-member-added tenant-id parent child)]))
           _ (identity/setup! store)
           [_ _] (identity/remove-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
@@ -426,13 +426,13 @@
           parent "parent"
           child "child"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (tenant/deactivated tenant-id)
                         (group/provisioned tenant-id parent nil)
                         (group/provisioned tenant-id child nil)
-                        (group/group-member-added tenant-id parent child)])
+                        (group/group-member-added tenant-id parent child)]))
           _ (identity/setup! store)
           [status _] (identity/remove-group-member! tenant-id parent child)
           group (load-aggregate (retrieve-events store group-id))]
@@ -445,12 +445,12 @@
           child "child"
           username "username"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (user/registered tenant-id "first-name" "last-name" "email@dot.com" username "password")
                         (group/provisioned tenant-id parent nil)
-                        (group/provisioned tenant-id child nil)])
+                        (group/provisioned tenant-id child nil)]))
           _ (identity/setup! store)
           [_ _] (identity/add-user-member! tenant-id parent username)
           group (load-aggregate (retrieve-events store group-id))]
@@ -462,12 +462,12 @@
           child "child"
           username "username"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (user/registered tenant-id "first-name" "last-name" "email@dot.com" username "password")
                         (group/provisioned tenant-id parent nil)
-                        (tenant/deactivated tenant-id)])
+                        (tenant/deactivated tenant-id)]))
           _ (identity/setup! store)
           [status _] (identity/add-user-member! tenant-id parent username)
           group (load-aggregate (retrieve-events store group-id))]
@@ -480,13 +480,13 @@
           child "child"
           username "username"
           group-id (group/group-id {:tenant-id tenant-id :name parent})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (user/registered tenant-id "first-name" "last-name" "email@dot.com" username "password")
                         (group/provisioned tenant-id parent nil)
                         (group/provisioned tenant-id child nil)
-                        (group/user-member-added tenant-id parent username)])
+                        (group/user-member-added tenant-id parent username)]))
           _ (identity/setup! store)
           [_ _] (identity/remove-user-member! tenant-id parent username)
           group (load-aggregate (retrieve-events store group-id))]
@@ -499,9 +499,9 @@
           description "The desec"
           nesting? true
           role-id (role/role-id {:tenant-id tenant-id :role-name name})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
-                        (tenant/activated tenant-id)])
+                        (tenant/activated tenant-id)]))
           _ (identity/setup! store)
           [_ _] (identity/provision-role! tenant-id name description nesting?)
           role (load-aggregate (retrieve-events store role-id))]
@@ -517,10 +517,10 @@
           description "The desec"
           nesting? true
           role-id (role/role-id {:tenant-id tenant-id :role-name name})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (tenant/deactivated tenant-id)])
+                        (tenant/deactivated tenant-id)]))
           _ (identity/setup! store)
           [status _] (identity/provision-role! tenant-id name description nesting?)
           role (load-aggregate (retrieve-events store role-id))]
@@ -533,9 +533,9 @@
           description "The desec"
           nesting? true
           role-id (role/role-id {:tenant-id tenant-id :role-name name})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
-                        (tenant/activated tenant-id)])
+                        (tenant/activated tenant-id)]))
           _ (identity/setup! store)
           [status _] (identity/provision-role! tenant-id name description nesting?)
           role (load-aggregate (retrieve-events store role-id))]
@@ -547,11 +547,10 @@
           name "A role"
           description "The desec"
           nesting? true
-          role-id (role/role-id {:tenant-id tenant-id :role-name name})
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
-                        (role/provisioned tenant-id name description (group/new-internal-group-name) nesting?)])
+                        (role/provisioned tenant-id name description (group/new-internal-group-name) nesting?)]))
           _ (identity/setup! store)
           [status _] (identity/provision-role! tenant-id name description nesting?)]
       (is (= :rejected status))))
@@ -563,11 +562,11 @@
           description "The desc"
           nesting? true
           group-name (group/new-internal-group-name)
-          store (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
+          store (wrap-basic-repository (given [(tenant/provisioned tenant-id "A Tenant" "A nice desc" "first-name" "last-name" "email@tan.com"
                                             "username" "password")
                         (tenant/activated tenant-id)
                         (role/provisioned tenant-id role-name description group-name nesting?)
-                        (user/registered tenant-id "first-name" "last-name" "email@dat.com" username "password")])
+                        (user/registered tenant-id "first-name" "last-name" "email@dat.com" username "password")]))
           _ (identity/setup! store)
           [_ _] (identity/assign-user-to-role! tenant-id role-name username)]
       (is (identity/in-role? tenant-id username role-name))))
