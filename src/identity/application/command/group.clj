@@ -120,7 +120,7 @@
 
 (defmethod notify-group ::tenant/Provisioned
   [{:keys [group-name]} {:keys [tenant-id admin-username]} _]
-  [(group/created tenant-id group-name  nil)
+  [(group/provisioned tenant-id group-name  nil)
    (group/user-member-added tenant-id group-name admin-username)])
 
 (defmethod notify-group ::role/Provisioned

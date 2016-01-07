@@ -1,5 +1,9 @@
 (ns identity.identity
-  (:require [rill.handler :refer [try-command]]
+  (:require [clojure.core.async :refer [chan go-loop mult put! tap untap <! <!!]]
+            [rill.event-channel :refer [event-channel]]
+            [rill.event-stream :refer [all-events-stream-id]]
+            [rill.handler :refer [try-command]]
+            [rill.message :as message]
             [rill.aggregate :refer [load-aggregate]]
             [rill.repository :refer [retrieve-aggregate]]
             [identity.application.command.tenant :as tenant-command]
@@ -7,15 +11,50 @@
             [identity.application.command.group :as group-command]
             [identity.application.command.role :as role-command]
             [identity.domain.model.user :as user]
-            [identity.domain.model.role :as role]))
+            [identity.domain.model.role :as role]
+            [identity.projection.user.event-listener :as user-details-listener]))
 
-(defonce store-atom (atom nil))                             ;;fixme add a real store
+(defonce store-atom (atom nil))                             ;;FIXME add a real store
+(defonce user-details-atom (atom {}))                       ;;FIXME Add a real backend for projections
+
+(defn setup!
+  [event-store]
+  (reset! store-atom event-store)
+  (reset! user-details-atom {})
+  (let [in (event-channel event-store all-events-stream-id -1 false)]
+    (user-details-listener/listen! user-details-atom in)))
+
+;(defn wait-for! [in events]
+;  (loop [events (->> events (map ::message/id) set)]
+;    (when-let [event (<!! in)]
+;      (let [remaining-events (disj (:message/id event))]
+;        (when (seq remaining-events)
+;          (recur remaining-events))))))
+
+;(defn- sync-command [command & args]
+;  (let [in (chan)]
+;    (tap @out-mult-atom in)
+;    (let [[status result] (apply command args)]
+;      (when (= status :ok) (wait-for! in result))
+;      (untap @out-mult-atom in)
+;      [status result])))
+;
+;(defn caught-up?
+;  [projection-atom]
+;  (= @projection-atom :caught-up))
+
+
+;(defn provision-tenant!
+;  "Creates a new tenant"
+;  [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]
+;  (try-command @store-atom (tenant-command/provision! tenant-id name description admin-first-name admin-last-name
+;                                                      admin-email admin-username admin-password)))
 
 (defn provision-tenant!
   "Creates a new tenant"
   [tenant-id name description admin-first-name admin-last-name admin-email admin-username admin-password]
-    (try-command @store-atom (tenant-command/provision! tenant-id name description admin-first-name admin-last-name
-                            admin-email admin-username admin-password)))
+  (try-command @store-atom (tenant-command/provision! tenant-id name description admin-first-name admin-last-name
+                                                      admin-email admin-username admin-password)))
 
 (defn activate-tenant!
   [tenant-id]
@@ -34,7 +73,7 @@
   (try-command @store-atom (tenant-command/change-description! tenant-id new-name)))
 
 (defn register-user! [tenant-id first-name last-name email username password]
-  (try-command @store-atom (user-command/register! tenant-id  first-name last-name email username password)))
+  (try-command @store-atom (user-command/register! tenant-id first-name last-name email username password)))
 
 (defn change-password! [tenant-id username password new-password]
   (try-command @store-atom (user-command/change-password! tenant-id username password new-password)))
@@ -82,9 +121,8 @@
   (let [role (retrieve-aggregate @store-atom (role/role-id {:tenant-id tenant-id :role-name role-name}))]
     (role/in-role? role {:tenant-id tenant-id :username username} @store-atom)))
 
-(defn setup!
-  [event-store]
-  (reset! store-atom event-store))
+
+
 
 
 

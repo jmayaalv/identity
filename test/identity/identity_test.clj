@@ -107,7 +107,7 @@
       (is (= username (:username user)))
       (is (= email (get-in user [:contact-info :email])))
       (is (= (user/encrypt! password tenant-id) (:password user)))
-      (is (user/enabled? user))))
+      (is (not (user/enabled? user)))))
   (testing "User can not register to an inactive tenant"
     (let [tenant-id (new-uuid)
           first-name "Kaiser"
@@ -138,36 +138,36 @@
       (is (= status :rejected)))))
 
 (deftest test-user-info
-  (testing "User can change the password"
-    (let [tenant-id (new-uuid)
-          first-name "Kaiser"
-          last-name "Sausze"
-          email "kaiser@sausze.com"
-          username "theuser"
-          password "thepass"
-          new-pass "newpass"
-          user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
-          _ (identity/setup! store)
-          _ (identity/change-password! tenant-id username password new-pass)
-          user (load-aggregate (retrieve-events store user-id))]
-      (is (user/valid-credentials? user username new-pass))))
-  (testing "User can't change the password if invalid credentials provided"
-    (let [tenant-id (new-uuid)
-          first-name "Kaiser"
-          last-name "Sausze"
-          email "kaiser@sausze.com"
-          username "theuser"
-          password "thepass"
-          new-pass "newpass"
-          user-id (user/user-id {:tenant-id tenant-id :username username})
-          store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
-          _ (identity/setup! store)
-          [status _] (identity/change-password! tenant-id username "invalid pass" new-pass)
-          user (load-aggregate (retrieve-events store user-id))]
-      (is (= password (:password user)))
-      (is (= status :rejected))))
-
+  ;(testing "User can change the password"
+  ;  (let [tenant-id (new-uuid)
+  ;        first-name "Kaiser"
+  ;        last-name "Sausze"
+  ;        email "kaiser@sausze.com"
+  ;        username "theuser"
+  ;        password "thepass"
+  ;        new-pass "newpass"
+  ;        user-id (user/user-id {:tenant-id tenant-id :username username})
+  ;        store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
+  ;        _ (identity/setup! store)
+  ;        _ (identity/change-password! tenant-id username password new-pass)
+  ;        user (load-aggregate (retrieve-events store user-id))]
+  ;    (is (user/valid-credentials? user username new-pass))))
+  ;(testing "User can't change the password if invalid credentials provided"
+  ;  (let [tenant-id (new-uuid)
+  ;        first-name "Kaiser"
+  ;        last-name "Sausze"
+  ;        email "kaiser@sausze.com"
+  ;        username "theuser"
+  ;        password "thepass"
+  ;        new-pass "newpass"
+  ;        user-id (user/user-id {:tenant-id tenant-id :username username})
+  ;        store (wrap-basic-repository (given [(user/registered tenant-id first-name last-name email username password)]))
+  ;        _ (identity/setup! store)
+  ;        [status _] (identity/change-password! tenant-id username "invalid pass" new-pass)
+  ;        user (load-aggregate (retrieve-events store user-id))]
+  ;    (is (= password (:password user)))
+  ;    (is (= status :rejected))))
+  ;
   (testing "User password can't be blank"
     (let [tenant-id (new-uuid)
           first-name "Kaiser"
@@ -200,7 +200,6 @@
           user (load-aggregate (retrieve-events store user-id))]
       (is (= new-first-name (:first-name user))
           (= new-last-name (:last-name user))))))
-
 (deftest test-user-enablement
   (testing "User can be disabled"
     (let [tenant-id (new-uuid)
@@ -569,5 +568,4 @@
                         (user/registered tenant-id "first-name" "last-name" "email@dat.com" username "password")]))
           _ (identity/setup! store)
           [_ _] (identity/assign-user-to-role! tenant-id role-name username)]
-      (is (identity/in-role? tenant-id username role-name))))
-  )
+      (is (identity/in-role? tenant-id username role-name)))))

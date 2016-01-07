@@ -37,17 +37,15 @@
   [_ {:keys [tenant-id role-name description group-name supports-nesting]}]
   (->Role tenant-id role-name description group-name supports-nesting))
 
-(defevent Created
+(defevent AdminRoleProvisioned
           :tenant-id s/Uuid
-          :role-name s/Str
-          :description s/Str
           :group-name s/Str
           :supports-nesting s/Bool
           role-id)
 
-(defmethod handle-event ::Created
-  [_ {:keys [tenant-id role-name description group-name supports-nesting]}]
-  (->Role tenant-id role-name description group-name supports-nesting))
+(defmethod handle-event ::AdminRoleProvisioned
+  [_ {:keys [tenant-id group-name supports-nesting]}]
+  (->Role tenant-id (admin-role-name) nil group-name supports-nesting))
 
 (defmethod observers ::Provisioned
   [_]

@@ -116,4 +116,4 @@
 (defmethod notify-role ::tenant/Provisioned
   [_ {:keys [tenant-id]} _]
   (let [group-name (group/new-internal-group-name)]
-    [(role/created tenant-id role/admin-role-name nil group-name false)]))
+    [(role/admin-role-provisioned tenant-id group-name false)]))

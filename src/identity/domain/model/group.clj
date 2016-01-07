@@ -61,16 +61,6 @@
   [_ {:keys [tenant-id name description]}]
   (->Group tenant-id name description))
 
-(defevent Created
-          :tenant-id s/Uuid
-          :name s/Str
-          :description s/Str
-          group-id)
-
-(defmethod handle-event ::Created
-  [_ {:keys [tenant-id name description]}]
-  (->Group tenant-id name description))
-
 (defevent GroupMemberAdded
           :tenant-id s/Uuid
           :name s/Str

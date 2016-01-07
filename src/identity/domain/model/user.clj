@@ -19,6 +19,9 @@
 (defn indefinite-enablement []
   (->Enablement true (time/now)))
 
+(defn disable-enablement []
+  (->Enablement false (time/now)))
+
 (defn full-name [{:keys [first_name last_name]}]
   (str first_name " " last_name))
 
@@ -57,7 +60,7 @@
 
 (defmethod handle-event ::Registered
   [_ {:keys [tenant-id first-name last-name email username password]}]
-  (let [user (->User tenant-id first-name last-name username password (indefinite-enablement))
+  (let [user (->User tenant-id first-name last-name username password (disable-enablement))
         contact-info (->ContactInformation email)]
     (assoc user :contact-info contact-info)))
 
