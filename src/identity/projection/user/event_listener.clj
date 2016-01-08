@@ -1,6 +1,5 @@
 (ns identity.projection.user.event-listener
-  (:require [clojure.core.async :refer [<!! thread]]
-          [clojure.tools.logging :as log]
+  (:require [clojure.core.async :refer [<!! thread put!]]
           [identity.projection.user.event-handler :refer [handle-event]]))
 
 (defn listen!
@@ -9,7 +8,6 @@
   (thread
     (loop []
       (when-let [event (<!! event-channel)]
-        ;(cond (= (:rill.message/type event) :identity.domain.model.user/Registered) (log/info event))
         (swap! model-atom handle-event event)
         (recur)))))
 

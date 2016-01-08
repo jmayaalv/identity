@@ -3,9 +3,21 @@
             [rill.event-channel :as event-channel]
             [identity.domain.model.user :as user]))
 
+(defn set-aggregate-version
+  [model aggregate-id version]
+  (assoc-in model [:aggregate-versions aggregate-id] version))
+
+(defn aggregate-version
+  [model aggregate-id]
+  (get-in model [:aggregate-versions aggregate-id]))
+
+(defn up-to-date?
+  [model id version]
+  (<= version (or (aggregate-version model id) -1)))
+
 
 (defn by-id [model user-id]
-  (user-id model))
+  (get model user-id))
 
 (defn full-name [first-name last-name]
   (str first-name " " last-name))
@@ -28,7 +40,7 @@
       (assoc-in [user-id :last-name] last-name)))
 
 (defn set-password
-  [model user-id {:keys [password]}]
+  [model user-id password]
   (assoc-in model [user-id :password] password))
 
 (defn set-enablement
