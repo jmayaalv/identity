@@ -1,12 +1,9 @@
 (ns identity.identity
-  (:require [clojure.core.async :refer [chan go-loop mult put! tap untap <! <!!]]
-            [rill.event-channel :refer [event-channel]]
+  (:require [rill.event-channel :refer [event-channel]]
             [rill.event-stream :refer [all-events-stream-id]]
             [rill.handler :refer [try-command]]
-            [rill.message :as message]
             [rill.aggregate :refer [load-aggregate]]
             [rill.repository :refer [retrieve-aggregate]]
-            [clojure.tools.logging :as log]
             [identity.application.command.tenant :as tenant-command]
             [identity.application.command.user :as user-command]
             [identity.application.command.group :as group-command]
@@ -14,39 +11,18 @@
             [identity.domain.model.user :as user]
             [identity.domain.model.role :as role]
             [identity.projection.user.event-listener :as user-details-listener]
-            [identity.projection.user.read-model :as user-details-model]))
+            [identity.projection.user.read-model :as user-details-model]
+            [identity.infrastructure.query-utils :refer [wait-for!]]))
 
 (defonce store-atom (atom nil))                             ;;FIXME add a real store
 (defonce user-details-atom (atom {}))                       ;;FIXME Add a real backend for projections
-(defonce out-mult-atom (atom nil))
 
 (defn setup!
   [event-store]
   (reset! store-atom event-store)
   (reset! user-details-atom {})
-  (let [in (event-channel event-store all-events-stream-id -1 false)
-        out (chan)]
-    (reset! out-mult-atom (mult out))
-    (user-details-listener/listen! user-details-atom in))
-  )
-
-(defn wait-for! [in events]
-  (loop [events (->> events (map ::message/id) set)]
-    (when-let [event (<!! in)]
-      (let [remaining-events (disj (:message/id event))]
-        (when (seq remaining-events)
-          (recur remaining-events))))))
-
-(defn- sync-command [command & args]
-  (let [in (chan)]
-    (tap @out-mult-atom in)
-    (let [[status result] (apply command args)]
-      (when (= status :ok) (wait-for! in result))
-      (untap @out-mult-atom in)
-      [status result])))
-
-
-
+  (let [in (event-channel event-store all-events-stream-id -1 false)]
+    (user-details-listener/listen! user-details-atom in)))
 
 (defn provision-tenant!
   "Creates a new tenant"
@@ -126,10 +102,5 @@
     (role/in-role? role {:tenant-id tenant-id :username username} @store-atom)))
 
 (defn user-details [user-id version]
-  @(future (loop [up-to-date false]
-             (if up-to-date
-               (user-details-model/by-id @user-details-atom user-id)
-               (do
-                 (log/info "test")
-                 (Thread/sleep 1000)
-                 (recur (user-details-model/up-to-date? @user-details-atom user-id version)))))))
+  (wait-for! #(user-details-model/up-to-date? @user-details-atom user-id version)
+             #(user-details-model/by-id @user-details-atom user-id)))
